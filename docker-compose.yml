@@ -1,0 +1,102 @@
+version: '3.7'
+services:
+  trino:
+    hostname: trino
+    image: 'trinodb/trino:latest'
+    ports:
+      - '8086:8080'
+    volumes:
+      - ./etc:/usr/lib/trino/etc:ro
+    networks:
+      - trino-network
+
+  mariadb:
+    hostname: mariadb
+    image: mariadb:10.5.8
+    ports:
+      - 3306:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: admin
+      MYSQL_USER: admin
+      MYSQL_PASSWORD: admin
+      MYSQL_DATABASE: metastore_db
+    networks:
+      - trino-network
+
+  hive-metastore:
+    hostname: hive-metastore
+    image: 'bitsondatadev/hive-metastore:latest'
+    ports:
+      - '9083:9083' # Metastore Thrift
+    volumes:
+      - ./conf/metastore-site.xml:/opt/apache-hive-metastore-3.0.0-bin/conf/metastore-site.xml:ro
+    environment:
+      METASTORE_DB_HOSTNAME: mariadb
+    depends_on:
+      - mariadb
+    networks:
+      - trino-network
+
+  minio:
+    hostname: minio
+    image: minio/minio:latest
+    container_name: minio
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - ./data:/data
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    command: server /data --console-address ":9001"
+    networks:
+      - trino-network
+
+  spark-master:
+    build:
+      context: ./spark
+      dockerfile: Dockerfile
+    image: bitnamilegacy/spark:3.5.1
+    container_name: spark-master
+    environment:
+      SPARK_MODE: master
+      SPARK_MASTER_HOST: spark-master
+      SPARK_MASTER_PORT: 7077
+      TZ: Asia/Ho_Chi_Minh
+    ports:
+      - "7077:7077"    # RPC
+      - "8081:8080"    # Web UI master (map 8080->8081)
+    volumes:
+      - ./spark/conf:/opt/bitnami/spark/conf
+      - ./spark/jobs:/opt/bitnami/spark/jobs 
+      - ./spark/logs:/opt/bitnami/spark/logs
+    networks: 
+      - trino-network
+
+# --- Spark Worker ---
+  spark-worker:
+    image: bitnamilegacy/spark:3.5.1
+    container_name: spark-worker
+    depends_on: [spark-master]
+    environment:
+      SPARK_MODE: worker
+      SPARK_MASTER_URL: spark://spark-master:7077
+      SPARK_WORKER_CORES: 2
+      SPARK_WORKER_MEMORY: 2G
+      SPARK_DRIVER_MEMORY: 2G
+      SPARK_EXECUTOR_MEMORY: 2G
+      TZ: Asia/Ho_Chi_Minh
+    volumes:
+      - ./spark/conf:/opt/bitnami/spark/conf
+      - ./spark/jobs:/opt/bitnami/spark/jobs
+      - ./spark/logs:/opt/bitnami/spark/logs
+    networks: 
+      - trino-network
+volumes:
+  minio-data:
+    driver: local
+
+networks:
+  trino-network:
+    driver: bridge
