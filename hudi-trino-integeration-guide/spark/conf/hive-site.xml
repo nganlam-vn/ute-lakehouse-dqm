@@ -1,0 +1,41 @@
+<configuration>
+  <!-- Kết nối Metastore -->
+  <property>
+    <name>hive.metastore.uris</name>
+    <value>thrift://hive-metastore:9083</value>
+  </property>
+
+  <!-- Chỉ định scratch dir local, tránh phụ thuộc HDFS -->
+  <property>
+    <name>hive.exec.scratchdir</name>
+    <value>/tmp/hive</value>
+  </property>
+  <property>
+    <name>hive.exec.local.scratchdir</name>
+    <value>/tmp/hive</value>
+  </property>
+  <property>
+    <name>hive.scratch.dir.permission</name>
+    <value>777</value>
+  </property>
+
+  <!-- (Tùy chọn) ép defaultFS là local để Hive CLI đừng “nghĩ” có HDFS -->
+  <property>
+    <name>fs.defaultFS</name>
+    <value>file:///</value>
+  </property>
+
+  <!-- Lakehouse của bạn trên MinIO qua S3A -->
+  <property>
+    <name>hive.metastore.warehouse.dir</name>
+    <value>s3a://warehouse</value>
+  </property>
+  <property>
+    <name>fs.s3.impl</name>
+    <value>org.apache.hadoop.fs.s3a.S3AFileSystem</value>
+  </property>
+  <property>
+    <name>fs.s3a.impl</name>
+    <value>org.apache.hadoop.fs.s3a.S3AFileSystem</value>
+  </property>
+</configuration>
